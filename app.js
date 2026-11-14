@@ -15,6 +15,11 @@
   const state = {
     staticTeamMode: !IS_LOCAL_HOST,
     syncedAtMuscat: "",
+    lastFingerprint: "",
+    contentDigest: "",
+    liveSync: null,
+    inspectorBusy: false,
+    showEmptyDaysMobile: false,
     items: [],
     stats: {},
     months: [],
@@ -207,8 +212,40 @@
     return true;
   }
 
+  function updateLiveSyncIndicator(syncObj) {
+    if (!syncObj || state.staticTeamMode) return;
+    state.liveSync = syncObj;
+    const pill = el("liveSyncPill");
+    const txt = el("liveSyncText");
+    if (!pill || !txt) return;
+
+    pill.classList.remove("is-syncing", "is-error");
+    if (syncObj.state === "syncing") {
+      pill.classList.add("is-syncing");
+      txt.textContent = "SYNCING TO LIVE…";
+      pill.title = syncObj.message || "Pushing latest schedule to GitHub Pages…";
+    } else if (syncObj.state === "error") {
+      pill.classList.add("is-error");
+      txt.textContent = "LIVE SYNC CHECK";
+      pill.title = syncObj.message || "Live sync encountered an error";
+    } else {
+      const sp = splitIsoDateTime(syncObj.last_synced_at_muscat);
+      txt.textContent = sp.time ? `AUTO-SYNC LIVE · ${sp.time}` : "AUTO-SYNC LIVE";
+      pill.title = `${syncObj.message || "Auto-sync active"} — Click to open live GitHub Pages team calendar`;
+    }
+  }
+
+  function syncBacklogBackdrop() {
+    const grid = el("workspaceGrid");
+    const backdrop = el("backlogBackdrop");
+    if (!grid || !backdrop) return;
+    const isOpen = !grid.classList.contains("backlog-collapsed");
+    const isOverlayMode = window.innerWidth <= 1180;
+    backdrop.classList.toggle("hidden", !(isOpen && isOverlayMode));
+  }
+
   // --- Data Fetch ---
-  async function loadDashboardData(preserveCalendarMonth = true) {
+  async function loadDashboardData(preserveCalendarMonth = true, silent = false) {
     try {
       let data = null;
       if (!state.staticTeamMode) {
@@ -225,7 +262,7 @@
       }
 
       if (state.staticTeamMode && !data) {
-        const res = await fetch("./data/dashboard.json", { cache: "no-store" });
+        const res = await fetch(`./data/dashboard.json?t=${Date.now()}`, { cache: "no-store" });
         data = await res.json();
       }
 
@@ -233,6 +270,9 @@
 
       state.staticTeamMode = Boolean(data.static_team_mode) || state.staticTeamMode;
       state.syncedAtMuscat = data.synced_at_muscat || "";
+      if (data.fingerprint) state.lastFingerprint = data.fingerprint;
+      if (data.content_digest) state.contentDigest = data.content_digest;
+      if (data.live_sync) updateLiveSyncIndicator(data.live_sync);
       state.items = data.items || [];
       state.stats = data.stats || {};
       state.months = data.months || [];
@@ -255,7 +295,9 @@
       populateFilterDropdowns();
       renderAll();
     } catch (err) {
-      showToast(`Load error: ${err.message}`, true);
+      if (!silent) {
+        showToast(`Load error: ${err.message}`, true);
+      }
     }
   }
 
@@ -394,7 +436,13 @@
 
     container.querySelectorAll(".backlog-card").forEach((card) => {
       const id = card.getAttribute("data-story-id");
-      card.addEventListener("click", () => openInspector(id));
+      card.addEventListener("click", () => {
+        if (window.innerWidth <= 1180) {
+          el("workspaceGrid")?.classList.add("backlog-collapsed");
+          syncBacklogBackdrop();
+        }
+        openInspector(id);
+      });
       if (!state.staticTeamMode) {
         card.addEventListener("dragstart", (ev) => {
           ev.dataTransfer.setData("text/plain", id);
@@ -467,6 +515,7 @@
   function renderCalendarGrid() {
     el("currentMonthLabel").textContent = `${MONTH_NAMES[state.calMonth]} ${state.calYear}`;
     const grid = el("calendarGrid");
+    grid.classList.toggle("show-empty-days", state.showEmptyDaysMobile);
     const dateMap = buildDateEventMap();
 
     const firstOfMonth = new Date(Date.UTC(state.calYear, state.calMonth, 1));
@@ -477,15 +526,21 @@
     const startUtc = Date.UTC(state.calYear, state.calMonth, 1 - startDow);
 
     const cellsHtml = [];
+    let activeDaysInMonth = 0;
+
     for (let i = 0; i < totalCells; i++) {
       const cellDt = new Date(startUtc + i * 86400000);
       const cy = cellDt.getUTCFullYear();
       const cm = cellDt.getUTCMonth();
       const cd = cellDt.getUTCDate();
+      const dowLabel = `${SHORT_DAYS[cellDt.getUTCDay()].toUpperCase()} · ${SHORT_MONTHS[cm].toUpperCase()}`;
       const dateStr = `${cy}-${String(cm + 1).padStart(2, "0")}-${String(cd).padStart(2, "0")}`;
       const isOtherMonth = cm !== state.calMonth;
       const isToday = dateStr === state.todayDateStr;
       const entries = dateMap.get(dateStr) || [];
+      if (!isOtherMonth && entries.length > 0) {
+        activeDaysInMonth++;
+      }
 
       const eventsHtml = entries
         .map(({ item, showWeb, showIg, webTime, igTime }) => {
@@ -524,10 +579,11 @@
         .join("");
 
       cellsHtml.push(`
-        <div class="day-cell ${isOtherMonth ? "other-month" : ""} ${isToday ? "is-today" : ""}" data-date="${dateStr}">
+        <div class="day-cell ${isOtherMonth ? "other-month" : ""} ${isToday ? "is-today" : ""} ${entries.length ? "has-events" : "empty-day"}" data-date="${dateStr}">
           <div class="day-cell-top">
             <span class="day-num">
-              ${cd}
+              <span>${cd}</span>
+              <span class="day-dow-mobile">${dowLabel}</span>
               ${isToday ? `<span class="today-tag">TODAY</span>` : ""}
             </span>
             <button type="button" class="btn-day-add" data-add-date="${dateStr}">+ Plan</button>
@@ -535,6 +591,22 @@
           <div class="day-events">${eventsHtml}</div>
         </div>
       `);
+    }
+
+    const mobSummary = el("mobileCalSummary");
+    if (mobSummary) {
+      mobSummary.textContent = `${activeDaysInMonth} active publishing ${activeDaysInMonth === 1 ? "day" : "days"} in ${SHORT_MONTHS[state.calMonth]}`;
+    }
+    const mobBtn = el("btnToggleEmptyDays");
+    if (mobBtn) {
+      mobBtn.textContent = state.showEmptyDaysMobile ? "Active Days Only" : "Show All Days";
+    }
+
+    if (activeDaysInMonth === 0 && !state.showEmptyDaysMobile) {
+      const hasTodayInMonth = state.todayDateStr && state.todayDateStr.startsWith(`${state.calYear}-${String(state.calMonth + 1).padStart(2, "0")}`);
+      if (!hasTodayInMonth) {
+        cellsHtml.push(`<div class="empty-state day-dow-mobile" style="padding:18px;text-align:center;">No scheduled posts in ${MONTH_NAMES[state.calMonth]} ${state.calYear} yet. Tap <strong>Show All Days</strong> above to view dates.</div>`);
+      }
     }
 
     grid.innerHTML = cellsHtml.join("");
@@ -609,14 +681,14 @@
           </div>
           ${miniSlides ? `<div class="pipe-mini-slides">${miniSlides}</div>` : ""}
         </div>
-        <div class="pipe-channel-box">
+        <div class="pipe-channel-box pipe-channel-web">
           <div class="pipe-channel-top">
             <span class="pill-mini pill-web">WEBSITE</span>
             <span class="status-badge st-${item.website.state}">${stateLabel(item.website.state)}</span>
           </div>
           <div class="pipe-time">${wpSplit.date ? `${wpSplit.date} · ${wpSplit.time} GST` : "No date assigned"}</div>
         </div>
-        <div class="pipe-channel-box">
+        <div class="pipe-channel-box pipe-channel-ig">
           <div class="pipe-channel-top">
             <span class="pill-mini pill-ig">@OMANSPIRE.OM</span>
             <span class="status-badge st-${item.instagram.state}">${stateLabel(item.instagram.state)}</span>
@@ -626,7 +698,7 @@
             ${stSplit.time && stSplit.time !== igSplit.time ? `<br/><small>Story: ${stSplit.time} GST</small>` : ""}
           </div>
         </div>
-        <div>
+        <div class="pipe-action-col">
           <button type="button" class="btn btn-xs">${actionLabel}</button>
         </div>
       </div>
@@ -1028,6 +1100,7 @@
   }
 
   function setInspectorBusy(busy) {
+    state.inspectorBusy = busy;
     [
       "btnSaveLocalPlan",
       "btnPushWpSchedule",
@@ -1209,9 +1282,14 @@
         document.querySelectorAll("[data-view]").forEach((b) => b.classList.toggle("active", b === btn));
         el("calendarViewSection").classList.toggle("active", state.view === "calendar");
         el("pipelineViewSection").classList.toggle("active", state.view === "pipeline");
-        el("calendarNavGroup").style.visibility = state.view === "calendar" ? "visible" : "hidden";
+        el("calendarNavGroup").classList.toggle("nav-hidden", state.view !== "calendar");
         renderAll();
       });
+    });
+
+    el("btnToggleEmptyDays")?.addEventListener("click", () => {
+      state.showEmptyDaysMobile = !state.showEmptyDaysMobile;
+      renderCalendarGrid();
     });
 
     el("btnPrevMonth").addEventListener("click", () => {
@@ -1261,9 +1339,15 @@
 
     const toggleBacklog = () => {
       el("workspaceGrid").classList.toggle("backlog-collapsed");
+      syncBacklogBackdrop();
     };
     el("btnToggleBacklog").addEventListener("click", toggleBacklog);
     el("btnCloseBacklog").addEventListener("click", toggleBacklog);
+    el("backlogBackdrop")?.addEventListener("click", () => {
+      el("workspaceGrid").classList.add("backlog-collapsed");
+      syncBacklogBackdrop();
+    });
+    window.addEventListener("resize", syncBacklogBackdrop);
 
     document.querySelectorAll(".backlog-tab").forEach((tab) => {
       tab.addEventListener("click", () => {
@@ -1356,6 +1440,10 @@
       if (ev.key === "Escape") {
         el("inspectorBackdrop").classList.add("hidden");
         el("dayPickerBackdrop").classList.add("hidden");
+        if (window.innerWidth <= 1180) {
+          el("workspaceGrid")?.classList.add("backlog-collapsed");
+          syncBacklogBackdrop();
+        }
       } else if (!el("inspectorBackdrop").classList.contains("hidden")) {
         const tag = (document.activeElement?.tagName || "").toLowerCase();
         if (tag !== "input" && tag !== "textarea") {
@@ -1410,6 +1498,68 @@
     el("btnPushBothScheduled")?.addEventListener("click", () => pushBothChannelsScheduled());
   }
 
+  function startAutoSyncPolling() {
+    // Auto-collapse backlog drawer on compact viewports so calendar takes center stage
+    if (window.innerWidth <= 1180) {
+      el("workspaceGrid")?.classList.add("backlog-collapsed");
+    }
+    syncBacklogBackdrop();
+
+    const checkUpdates = async () => {
+      if (document.visibilityState !== "visible" || state.inspectorBusy) return;
+
+      if (!state.staticTeamMode) {
+        try {
+          const res = await fetch("/api/version", { cache: "no-store" });
+          if (!res.ok) return;
+          const v = await res.json();
+          if (v.live_sync) updateLiveSyncIndicator(v.live_sync);
+          if (v.server_time_muscat) {
+            state.serverTimeMuscat = v.server_time_muscat;
+            state.todayDateStr = v.server_time_muscat.slice(0, 10);
+            reconcileLiveStatesWithClock(state.items, state.serverTimeMuscat);
+            renderHeaderStats();
+          }
+          if (v.fingerprint && state.lastFingerprint && v.fingerprint !== state.lastFingerprint) {
+            state.lastFingerprint = v.fingerprint;
+            await loadDashboardData(true, true);
+            showToast("Calendar auto-updated with latest schedule");
+          }
+        } catch (_e) {
+          // Quietly ignore transient network blips
+        }
+      } else {
+        try {
+          const liveIso = computeLiveMuscatIso();
+          state.serverTimeMuscat = liveIso;
+          state.todayDateStr = liveIso.slice(0, 10);
+          reconcileLiveStatesWithClock(state.items, liveIso);
+          renderHeaderStats();
+
+          const res = await fetch(`./data/dashboard.json?t=${Date.now()}`, { cache: "no-store" });
+          if (!res.ok) return;
+          const d = await res.json();
+          if (d && d.content_digest && state.contentDigest && d.content_digest !== state.contentDigest) {
+            state.contentDigest = d.content_digest;
+            await loadDashboardData(true, true);
+            showToast("Live calendar updated");
+          }
+        } catch (_e) {
+          // Quietly ignore transient network blips
+        }
+      }
+    };
+
+    // Poll every 4s locally, or every 30s on static GitHub Pages
+    setInterval(checkUpdates, IS_LOCAL_HOST ? 4000 : 30000);
+    document.addEventListener("visibilitychange", () => {
+      if (document.visibilityState === "visible") {
+        checkUpdates();
+      }
+    });
+  }
+
   bindEvents();
+  startAutoSyncPolling();
   loadDashboardData(false);
 })();

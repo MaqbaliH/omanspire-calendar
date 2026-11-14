@@ -18,6 +18,10 @@
           <span class="kicker-bar"></span>
           <span>OMANSPIRE EDITORIAL COMMAND</span>
           <span class="source-lock-pill" id="modeBadgePill" title="Displays strictly posts, carousels, stories, and plans created or pushed from this workspace. Zero external sources.">LOCAL WORKSPACE SOURCE ONLY</span>
+          <a href="https://maqbalih.github.io/omanspire-calendar/" target="_blank" rel="noopener" class="live-sync-pill admin-only" id="liveSyncPill" title="Changes automatically sync to the live GitHub Pages team calendar">
+            <span class="sync-dot" id="liveSyncDot"></span>
+            <span id="liveSyncText">AUTO-SYNC LIVE</span>
+          </a>
         </div>
         <h1>Post Calendar &amp; Publishing Plan</h1>
         <p class="masthead-sub">
@@ -80,9 +84,9 @@
 
       <div class="filter-controls">
         <div class="segmented-group segmented-sm" id="channelFilterGroup" aria-label="Channel filter">
-          <button type="button" class="seg-btn active" data-channel="all">Both Channels</button>
-          <button type="button" class="seg-btn" data-channel="website">Website (omanspire.om)</button>
-          <button type="button" class="seg-btn" data-channel="instagram">@omanspire.om (IG)</button>
+          <button type="button" class="seg-btn active" data-channel="all"><span class="lbl-full">Both Channels</span><span class="lbl-short">Both</span></button>
+          <button type="button" class="seg-btn" data-channel="website"><span class="lbl-full">Website (omanspire.om)</span><span class="lbl-short">Website</span></button>
+          <button type="button" class="seg-btn" data-channel="instagram"><span class="lbl-full">@omanspire.om (IG)</span><span class="lbl-short">Instagram</span></button>
         </div>
 
         <select id="categoryFilter" class="select-input" aria-label="Filter by editorial desk">
@@ -117,6 +121,7 @@
     </div>
 
     <!-- Workspace Main Split: Collapsible Backlog Sidebar + Active View -->
+    <div class="backlog-backdrop hidden" id="backlogBackdrop"></div>
     <div class="workspace-grid" id="workspaceGrid">
       <!-- Left Drawer: Unscheduled Drafts & Ready Workspace Stories -->
       <aside class="backlog-panel" id="backlogPanel" aria-label="Unscheduled stories and pushed drafts">
@@ -154,6 +159,10 @@
       <main class="stage-area">
         <!-- View 1: Month Calendar Grid -->
         <section id="calendarViewSection" class="view-section active">
+          <div class="mobile-cal-toolbar" id="mobileCalToolbar">
+            <span class="mobile-cal-summary" id="mobileCalSummary">Scheduled &amp; active days</span>
+            <button type="button" class="btn btn-xs" id="btnToggleEmptyDays">Show Empty Days</button>
+          </div>
           <div class="weekday-header">
             <div>SUN</div>
             <div>MON</div>
