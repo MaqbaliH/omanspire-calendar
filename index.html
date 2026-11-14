@@ -1,0 +1,434 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>OmanSpire — Editorial Post Calendar &amp; Plan Pipeline</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;600;700&family=Newsreader:ital,opsz,wght@0,6..72,500;0,6..72,600;1,6..72,500&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="./styles.css" />
+</head>
+<body>
+  <div class="app-shell">
+    <!-- Top Editorial Masthead -->
+    <header class="masthead">
+      <div class="masthead-brand">
+        <div class="brand-kicker">
+          <span class="kicker-bar"></span>
+          <span>OMANSPIRE EDITORIAL COMMAND</span>
+          <span class="source-lock-pill" id="modeBadgePill" title="Displays strictly posts, carousels, stories, and plans created or pushed from this workspace. Zero external sources.">LOCAL WORKSPACE SOURCE ONLY</span>
+        </div>
+        <h1>Post Calendar &amp; Publishing Plan</h1>
+        <p class="masthead-sub">
+          Unified schedule for <strong>omanspire.om</strong> (Website) &amp; <strong>@omanspire.om</strong> (Instagram Carousels &amp; Stories) · All times in <span id="clockDisplay" class="mono-inline">Muscat (UTC+04:00)</span>
+        </p>
+      </div>
+
+      <div class="masthead-actions">
+        <div class="kpi-strip" id="kpiStrip">
+          <div class="kpi-card kpi-teal">
+            <span class="kpi-label">WEB SCHEDULED</span>
+            <strong class="kpi-val" id="statUpcomingWeb">—</strong>
+          </div>
+          <div class="kpi-card kpi-coral">
+            <span class="kpi-label">IG SCHEDULED</span>
+            <strong class="kpi-val" id="statUpcomingIg">—</strong>
+          </div>
+          <div class="kpi-card">
+            <span class="kpi-label">LIVE / SENT</span>
+            <strong class="kpi-val" id="statLiveTotal">—</strong>
+          </div>
+          <div class="kpi-card kpi-gold">
+            <span class="kpi-label">PUSHED DRAFTS</span>
+            <strong class="kpi-val" id="statDrafts">—</strong>
+          </div>
+        </div>
+
+        <div class="header-btn-row">
+          <button type="button" class="btn btn-ghost" id="btnToggleBacklog" title="Toggle Unscheduled & Drafts Drawer">
+            <span class="dot dot-gold"></span>
+            <span>Drafts &amp; Ready</span>
+            <span class="mono-badge" id="backlogBadgeCount">0</span>
+          </button>
+          <button type="button" class="btn btn-gold admin-only" id="btnSyncGithub" title="Build static bundle and push latest calendar to GitHub Pages for the team">
+            Sync Team Page
+          </button>
+          <button type="button" class="btn btn-ghost admin-only" id="btnVerifyConn" title="Verify live API connection to omanspire.om and Buffer">
+            Verify APIs
+          </button>
+          <button type="button" class="btn btn-ghost" id="btnRefresh" title="Re-scan workspace receipts & content_plan.json">
+            Refresh
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <!-- Toolbar: View Switcher + Channel Filter + Desk Filter + Calendar Nav -->
+    <nav class="control-bar" aria-label="Calendar controls">
+      <div class="segmented-group" role="tablist" aria-label="Dashboard View">
+        <button type="button" class="seg-btn active" data-view="calendar" id="tabCalendarView">Calendar Grid</button>
+        <button type="button" class="seg-btn" data-view="pipeline" id="tabPipelineView">Plan Pipeline</button>
+      </div>
+
+      <div class="calendar-nav" id="calendarNavGroup">
+        <button type="button" class="icon-btn" id="btnPrevMonth" aria-label="Previous month">&larr;</button>
+        <h2 class="month-heading" id="currentMonthLabel">November 2026</h2>
+        <button type="button" class="icon-btn" id="btnNextMonth" aria-label="Next month">&rarr;</button>
+        <button type="button" class="btn btn-xs" id="btnToday">Today</button>
+      </div>
+
+      <div class="filter-controls">
+        <div class="segmented-group segmented-sm" id="channelFilterGroup" aria-label="Channel filter">
+          <button type="button" class="seg-btn active" data-channel="all">Both Channels</button>
+          <button type="button" class="seg-btn" data-channel="website">Website (omanspire.om)</button>
+          <button type="button" class="seg-btn" data-channel="instagram">@omanspire.om (IG)</button>
+        </div>
+
+        <select id="categoryFilter" class="select-input" aria-label="Filter by editorial desk">
+          <option value="all">All 8 Desks</option>
+          <option value="News">News</option>
+          <option value="Economy">Economy</option>
+          <option value="Culture">Culture</option>
+          <option value="History">History</option>
+          <option value="Travel">Travel</option>
+          <option value="People">People</option>
+          <option value="Life">Life</option>
+          <option value="Sports">Sports</option>
+        </select>
+
+        <select id="campaignFilter" class="select-input" aria-label="Filter by plan campaign">
+          <option value="all">All Plans / Series</option>
+        </select>
+      </div>
+    </nav>
+
+    <!-- Status Legend -->
+    <div class="legend-strip">
+      <div class="legend-items">
+        <span class="legend-item"><span class="pill-mini pill-web">WEB</span> omanspire.om Article</span>
+        <span class="legend-item"><span class="pill-mini pill-ig">IG</span> @omanspire.om 4:5 Carousel (+ 9:16 Story)</span>
+        <span class="legend-sep">·</span>
+        <span class="legend-item"><span class="state-dot state-scheduled"></span> Scheduled on Server</span>
+        <span class="legend-item"><span class="state-dot state-planned"></span> Local Plan (Not Yet Pushed)</span>
+        <span class="legend-item"><span class="state-dot state-published"></span> Published / Live</span>
+      </div>
+      <div class="legend-hint">Tip: Drag any story from <strong>Drafts &amp; Ready</strong> onto a calendar day to schedule it, or click any card to preview slides &amp; article.</div>
+    </div>
+
+    <!-- Workspace Main Split: Collapsible Backlog Sidebar + Active View -->
+    <div class="workspace-grid" id="workspaceGrid">
+      <!-- Left Drawer: Unscheduled Drafts & Ready Workspace Stories -->
+      <aside class="backlog-panel" id="backlogPanel" aria-label="Unscheduled stories and pushed drafts">
+        <div class="backlog-header">
+          <div>
+            <span class="section-eyebrow">WORKSPACE QUEUE</span>
+            <h3>Unscheduled &amp; Drafts</h3>
+          </div>
+          <button type="button" class="icon-btn" id="btnCloseBacklog" title="Collapse sidebar">&times;</button>
+        </div>
+
+        <div class="backlog-tabs">
+          <button type="button" class="backlog-tab active" data-btab="drafts" id="btabDrafts">
+            Pushed Drafts <span class="tab-count" id="countTabDrafts">0</span>
+          </button>
+          <button type="button" class="backlog-tab" data-btab="ready" id="btabReady">
+            Folder Ready <span class="tab-count" id="countTabReady">0</span>
+          </button>
+        </div>
+
+        <div class="backlog-filters">
+          <input type="search" id="backlogSearch" class="text-input" placeholder="Search title, slug, or date folder..." />
+          <select id="backlogMonthFilter" class="select-input select-full">
+            <option value="Nov-2026">Nov-2026 Editions</option>
+            <option value="all">All Workspace Months</option>
+          </select>
+        </div>
+
+        <div class="backlog-list" id="backlogList">
+          <!-- Populated dynamically -->
+        </div>
+      </aside>
+
+      <!-- Main Stage -->
+      <main class="stage-area">
+        <!-- View 1: Month Calendar Grid -->
+        <section id="calendarViewSection" class="view-section active">
+          <div class="weekday-header">
+            <div>SUN</div>
+            <div>MON</div>
+            <div>TUE</div>
+            <div>WED</div>
+            <div>THU</div>
+            <div class="weekend-col">FRI</div>
+            <div class="weekend-col">SAT</div>
+          </div>
+          <div class="calendar-grid" id="calendarGrid">
+            <!-- Day cells injected by app.js -->
+          </div>
+        </section>
+
+        <!-- View 2: Chronological Plan Pipeline & Roadmap -->
+        <section id="pipelineViewSection" class="view-section">
+          <div class="pipeline-block">
+            <div class="pipeline-section-head">
+              <div>
+                <span class="section-eyebrow eyebrow-teal">ACTIVE PUBLISHING ROADMAP</span>
+                <h3>Upcoming Scheduled &amp; Planned Posts</h3>
+              </div>
+              <span class="mono-badge" id="upcomingCountBadge">0 stories</span>
+            </div>
+            <div class="pipeline-list" id="upcomingPipelineList"></div>
+          </div>
+
+          <div class="pipeline-block">
+            <div class="pipeline-section-head">
+              <div>
+                <span class="section-eyebrow eyebrow-gold">IN THE PLAN PIPELINE (UNASSIGNED DATE)</span>
+                <h3>Pinned Series &amp; Ready Queue</h3>
+              </div>
+              <span class="mono-badge" id="pinnedCountBadge">0 stories</span>
+            </div>
+            <div class="pipeline-list" id="pinnedPipelineList"></div>
+          </div>
+
+          <div class="pipeline-block">
+            <div class="pipeline-section-head">
+              <div>
+                <span class="section-eyebrow">PUBLISHED ARCHIVE (PUSHED FROM HERE)</span>
+                <h3>Live on omanspire.om &amp; @omanspire.om</h3>
+              </div>
+              <span class="mono-badge" id="publishedCountBadge">0 stories</span>
+            </div>
+            <div class="pipeline-list" id="publishedPipelineList"></div>
+          </div>
+        </section>
+      </main>
+    </div>
+  </div>
+
+  <!-- Day Quick-Picker Popover Modal (when clicking + Plan on an empty day) -->
+  <div class="modal-backdrop hidden" id="dayPickerBackdrop">
+    <div class="day-picker-modal" role="dialog" aria-modal="true" aria-labelledby="dayPickerTitle">
+      <div class="modal-top">
+        <div>
+          <span class="section-eyebrow">ASSIGN STORY TO DATE</span>
+          <h3 id="dayPickerTitle">Plan Story for Date</h3>
+        </div>
+        <button type="button" class="icon-btn" id="btnCloseDayPicker">&times;</button>
+      </div>
+      <div class="day-picker-search-wrap">
+        <input type="search" id="dayPickerSearch" class="text-input" placeholder="Filter pushed drafts or ready workspace stories..." />
+      </div>
+      <div class="day-picker-list" id="dayPickerList"></div>
+    </div>
+  </div>
+
+  <!-- Slide-Over Editorial Inspector & Plan Editor -->
+  <div class="drawer-backdrop hidden" id="inspectorBackdrop">
+    <aside class="inspector-drawer" role="dialog" aria-modal="true" aria-labelledby="inspTitle">
+      <header class="inspector-header">
+        <div class="insp-title-wrap">
+          <div class="insp-meta-row">
+            <span class="desk-pill" id="inspCategoryPill">CULTURE</span>
+            <span class="mono-dim" id="inspEditionPath">News/Nov-2026/20 Nov 26</span>
+          </div>
+          <h2 id="inspTitle">Story Title</h2>
+        </div>
+        <button type="button" class="icon-btn icon-btn-lg" id="btnCloseInspector" aria-label="Close inspector">&times;</button>
+      </header>
+
+      <div class="inspector-body">
+        <!-- Left Pane: Visual Carousel, Story Poster & Article Reader -->
+        <div class="inspector-preview-col">
+          <div class="preview-tabs">
+            <button type="button" class="ptab active" data-ptab="carousel">4:5 Carousel &amp; Caption</button>
+            <button type="button" class="ptab" data-ptab="story">9:16 Story &amp; Cover</button>
+            <button type="button" class="ptab" data-ptab="article">Website Article &amp; SEO</button>
+          </div>
+
+          <!-- Tab 1: 4:5 Carousel + Caption -->
+          <div class="ptab-pane active" id="paneCarousel">
+            <div class="carousel-stage" id="carouselStage">
+              <div class="carousel-frame">
+                <img id="carouselMainImg" src="" alt="Carousel slide preview" />
+                <button type="button" class="car-nav car-prev" id="btnSlidePrev" aria-label="Previous slide">&lsaquo;</button>
+                <button type="button" class="car-nav car-next" id="btnSlideNext" aria-label="Next slide">&rsaquo;</button>
+                <span class="car-counter mono-inline" id="carouselCounter">01 / 05</span>
+              </div>
+              <div class="carousel-filmstrip" id="carouselFilmstrip"></div>
+            </div>
+
+            <div class="caption-editor-box">
+              <div class="box-label-row">
+                <label for="inspCaptionInput">INSTAGRAM CAPTION (@omanspire.om)</label>
+                <button type="button" class="btn btn-xs" id="btnCopyCaption">Copy Caption</button>
+              </div>
+              <textarea id="inspCaptionInput" rows="7" class="textarea-input" placeholder="No instagram_caption.txt found in folder."></textarea>
+            </div>
+          </div>
+
+          <!-- Tab 2: 9:16 Story Poster & 1:1 Cover -->
+          <div class="ptab-pane" id="paneStory">
+            <div class="dual-media-grid">
+              <div class="media-card">
+                <span class="box-label">9:16 STORY POSTER</span>
+                <div class="story-frame" id="storyPosterWrap">
+                  <img id="inspStoryImg" src="" alt="9:16 Story Poster" />
+                </div>
+              </div>
+              <div class="media-card">
+                <span class="box-label">1:1 WEBSITE COVER ART</span>
+                <div class="cover-frame" id="coverArtWrap">
+                  <img id="inspCoverImg" src="" alt="1:1 Website Cover Artwork" />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Tab 3: Website HTML Preview & SEO Metadata -->
+          <div class="ptab-pane" id="paneArticle">
+            <div class="seo-meta-card" id="inspSeoBox"></div>
+            <article class="article-reader" id="inspArticleBody"></article>
+          </div>
+        </div>
+
+        <!-- Right Pane: Plan Editor & Live Push Controls -->
+        <div class="inspector-plan-col">
+          <!-- Team Read-Only Schedule Summary (shown on GitHub Pages) -->
+          <div id="teamReadOnlyPanel" class="team-summary-stack hidden"></div>
+
+          <!-- Admin Plan Controls (shown on localhost) -->
+          <div id="adminPlanControls" class="admin-plan-stack">
+          <!-- Plan Metadata -->
+          <div class="plan-card">
+            <div class="plan-card-head">
+              <span class="section-eyebrow eyebrow-gold">EDITORIAL PLAN METADATA</span>
+              <label class="pin-toggle">
+                <input type="checkbox" id="planPinCheckbox" />
+                <span>Pin to Pipeline</span>
+              </label>
+            </div>
+
+            <div class="form-row">
+              <label for="planCampaignInput">Series / Campaign Arc</label>
+              <input type="text" id="planCampaignInput" list="campaignSuggestions" class="text-input" placeholder="e.g. 56th National Day Arc, Oman–Uzbekistan Dossier..." />
+              <datalist id="campaignSuggestions"></datalist>
+            </div>
+
+            <div class="form-row">
+              <label for="planNotesInput">Editorial Plan Note</label>
+              <textarea id="planNotesInput" rows="2" class="textarea-input" placeholder="Slot rationale, embargo, cross-post notes..."></textarea>
+            </div>
+          </div>
+
+          <!-- Channel 1: Website (omanspire.om) -->
+          <div class="plan-card channel-card-web">
+            <div class="channel-card-top">
+              <div>
+                <span class="pill-mini pill-web">WEBSITE</span>
+                <h4>omanspire.om (WordPress)</h4>
+              </div>
+              <span class="status-badge" id="inspWebStatusBadge">Ready</span>
+            </div>
+
+            <div class="receipt-links" id="inspWebLinks"></div>
+
+            <div class="schedule-inputs">
+              <div class="form-col">
+                <label for="wpDateInput">Date (Muscat)</label>
+                <input type="date" id="wpDateInput" class="text-input mono-input" />
+              </div>
+              <div class="form-col">
+                <label for="wpTimeInput">Time (UTC+4)</label>
+                <input type="time" id="wpTimeInput" class="text-input mono-input" value="16:30" />
+              </div>
+            </div>
+
+            <div class="preset-chips" data-target-time="wpTimeInput">
+              <span class="chip-hint">Presets:</span>
+              <button type="button" class="chip-btn" data-time="08:00">08:00</button>
+              <button type="button" class="chip-btn" data-time="09:30">09:30</button>
+              <button type="button" class="chip-btn" data-time="16:30">16:30</button>
+              <button type="button" class="chip-btn" data-time="17:00">17:00</button>
+              <button type="button" class="chip-btn" data-time="20:00">20:00</button>
+            </div>
+
+            <div class="card-action-row">
+              <button type="button" class="btn btn-web" id="btnPushWpSchedule">Push / Schedule Website</button>
+              <button type="button" class="btn btn-ghost btn-sm" id="btnPushWpDraft">Save WP Draft</button>
+              <button type="button" class="btn btn-ghost btn-sm" id="btnPushWpNow" title="Publish immediately to omanspire.om">Publish Now</button>
+            </div>
+          </div>
+
+          <!-- Channel 2: Instagram (@omanspire.om via Buffer) -->
+          <div class="plan-card channel-card-ig">
+            <div class="channel-card-top">
+              <div>
+                <span class="pill-mini pill-ig">INSTAGRAM</span>
+                <h4>@omanspire.om (Carousel &amp; Story)</h4>
+              </div>
+              <span class="status-badge" id="inspIgStatusBadge">Ready</span>
+            </div>
+
+            <div class="receipt-links" id="inspIgLinks"></div>
+
+            <div class="schedule-inputs">
+              <div class="form-col">
+                <label for="igDateInput">Carousel Date</label>
+                <input type="date" id="igDateInput" class="text-input mono-input" />
+              </div>
+              <div class="form-col">
+                <label for="igTimeInput">Carousel Time (UTC+4)</label>
+                <input type="time" id="igTimeInput" class="text-input mono-input" value="19:30" />
+              </div>
+            </div>
+
+            <div class="preset-chips" data-target-time="igTimeInput">
+              <span class="chip-hint">Presets:</span>
+              <button type="button" class="chip-btn" data-time="10:30">10:30</button>
+              <button type="button" class="chip-btn" data-time="12:30">12:30</button>
+              <button type="button" class="chip-btn" data-time="17:00">17:00</button>
+              <button type="button" class="chip-btn" data-time="19:30">19:30</button>
+              <button type="button" class="chip-btn" data-time="20:00">20:00</button>
+            </div>
+
+            <div class="story-stagger-row">
+              <label class="checkbox-label">
+                <input type="checkbox" id="includeStoryCheckbox" checked />
+                <span>Include 9:16 Story (+20m stagger)</span>
+              </label>
+              <input type="time" id="storyTimeInput" class="text-input mono-input time-compact" value="19:50" title="9:16 Instagram Story time (Muscat UTC+4)" />
+            </div>
+
+            <div class="card-action-row">
+              <button type="button" class="btn btn-ig" id="btnPushIgSchedule">Push / Schedule @omanspire.om</button>
+              <button type="button" class="btn btn-ghost btn-sm" id="btnPushIgDraft">Save Buffer Draft</button>
+            </div>
+          </div>
+
+          <!-- Unified Plan & Dual Push Footer -->
+          <div class="unified-footer-actions">
+            <div class="action-status-msg" id="inspActionFeedback"></div>
+            <div class="unified-btn-grid">
+              <button type="button" class="btn btn-gold" id="btnSaveLocalPlan" title="Save dates, campaign, and caption locally to content_plan.json without calling WordPress or Buffer yet">
+                Save Local Plan Only
+              </button>
+              <button type="button" class="btn btn-primary-dual" id="btnPushBothScheduled">
+                Schedule &amp; Push Both Channels
+              </button>
+            </div>
+            <button type="button" class="btn-link-clear" id="btnClearLocalPlan">Clear unpushed local plan dates</button>
+          </div>
+          </div>
+        </div>
+      </div>
+    </aside>
+  </div>
+
+  <!-- Toast Notification -->
+  <div class="toast-container" id="toastContainer"></div>
+
+  <script src="./app.js"></script>
+</body>
+</html>
