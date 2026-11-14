@@ -1710,8 +1710,24 @@ body.team-readonly .backlog-card {
 }
 
 /* =========================================================
-   Responsive Tablet & Mobile Architecture (<= 1040px..360px)
+   Responsive Tablet & Mobile Architecture (<= 1260px..320px)
    ========================================================= */
+
+.seo-meta-card,
+.article-reader,
+.team-note-box {
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.source-lock-pill {
+  max-width: 100%;
+  line-height: 1.35;
+}
+
+.team-kv-row {
+  flex-wrap: wrap;
+}
 
 .calendar-nav.nav-hidden {
   visibility: hidden;
@@ -1723,7 +1739,39 @@ body.team-readonly .backlog-card {
   }
 }
 
-/* Tablet Landscape & Compact Laptops */
+/* Compact Laptops & Landscape Tablets (7-column grid with full-width card titles) */
+@media (min-width: 941px) and (max-width: 1260px) {
+  .day-cell {
+    min-height: 144px;
+    padding: 7px;
+  }
+
+  .day-cell-top {
+    flex-wrap: wrap;
+    gap: 4px;
+  }
+
+  .today-tag {
+    font-size: 8.5px;
+    padding: 1px 4px;
+  }
+
+  .btn-day-add {
+    font-size: 9.5px;
+    padding: 1px 5px;
+  }
+
+  .cal-card-head {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0;
+  }
+
+  .cal-thumb {
+    display: none;
+  }
+}
+
+/* Tablet Landscape & Portrait Header/Toolbar Stack */
 @media (max-width: 1040px) {
   .app-shell {
     padding: 18px 20px 42px;
@@ -1753,21 +1801,71 @@ body.team-readonly .backlog-card {
   .calendar-nav.nav-hidden {
     display: none;
   }
+}
 
-  /* Compact 7-column calendar cards on portrait/landscape tablets */
+/* Portrait Tablets (iPad Mini / Air / Pro 11": <= 940px) — 2-Column Spacious Day Cards */
+@media (max-width: 940px) {
+  .mobile-cal-toolbar {
+    display: flex;
+  }
+
+  .weekday-header {
+    display: none;
+  }
+
+  .calendar-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+  }
+
+  .calendar-grid .day-cell.other-month {
+    display: none;
+  }
+
+  .calendar-grid:not(.show-empty-days) .day-cell.empty-day:not(.is-today) {
+    display: none;
+  }
+
   .day-cell {
-    min-height: 136px;
-    padding: 7px;
+    min-height: auto;
+    padding: 12px;
+    gap: 9px;
+  }
+
+  .day-num {
+    font-size: 14px;
+    gap: 8px;
+  }
+
+  .day-dow-mobile {
+    display: inline;
+  }
+
+  .cal-card {
+    padding: 10px;
   }
 
   .cal-card-head {
-    grid-template-columns: 28px 1fr;
-    gap: 6px;
+    grid-template-columns: 44px minmax(0, 1fr);
+    gap: 10px;
+    align-items: center;
   }
 
   .cal-thumb {
-    width: 28px;
-    height: 28px;
+    display: block;
+    width: 44px;
+    height: 44px;
+    border-radius: 6px;
+  }
+
+  .cal-title {
+    font-size: 13px;
+    line-height: 1.35;
+  }
+
+  .slot-chip {
+    font-size: 10.5px;
+    padding: 3px 7px;
   }
 }
 
@@ -1881,67 +1979,10 @@ body.team-readonly .backlog-card {
     display: none;
   }
 
-  /* Mobile Calendar Agenda / Day-Card Grid */
-  .mobile-cal-toolbar {
-    display: flex;
-  }
-
-  .weekday-header {
-    display: none;
-  }
-
+  /* Mobile 1-Column Day-Card Grid */
   .calendar-grid {
     grid-template-columns: minmax(0, 1fr);
     gap: 10px;
-  }
-
-  .calendar-grid .day-cell.other-month {
-    display: none;
-  }
-
-  .calendar-grid:not(.show-empty-days) .day-cell.empty-day:not(.is-today) {
-    display: none;
-  }
-
-  .day-cell {
-    min-height: auto;
-    padding: 12px;
-    gap: 9px;
-  }
-
-  .day-num {
-    font-size: 14px;
-    gap: 8px;
-  }
-
-  .day-dow-mobile {
-    display: inline;
-  }
-
-  .cal-card {
-    padding: 10px;
-  }
-
-  .cal-card-head {
-    grid-template-columns: 44px minmax(0, 1fr);
-    gap: 10px;
-    align-items: center;
-  }
-
-  .cal-thumb {
-    width: 44px;
-    height: 44px;
-    border-radius: 6px;
-  }
-
-  .cal-title {
-    font-size: 13px;
-    line-height: 1.35;
-  }
-
-  .slot-chip {
-    font-size: 10.5px;
-    padding: 3px 7px;
   }
 
   /* Mobile Pipeline Cards */
